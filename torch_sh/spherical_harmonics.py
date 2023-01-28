@@ -1,12 +1,23 @@
 import torch
     
 @torch.jit.script
-def factorial(n):
+def factorial(n: torch.Tensor):
+    """
+    A torch-only factorial function.
+    """
     return torch.exp(torch.lgamma(n+1))
 
 
 @torch.jit.script
-def modified_associated_legendre_polynomials(l_max: int, z, r):
+def modified_associated_legendre_polynomials(l_max: int, z: torch.Tensor, r: torch.Tensor):
+
+    """
+    Calculates P_l^m * r^l / r_(xy)^m , where P_l^m is an associated Legendre polynomial.
+    This construction simplifies the calculation in Cartesian coordinates and it avoids the
+    numerical instabilities in the derivatives for points on the z axis. The implementation is
+    based on the standard recurrence relations for P_l^m.
+    """
+
     q = []
     for l in range(l_max+1):
         q.append(
@@ -27,14 +38,31 @@ def modified_associated_legendre_polynomials(l_max: int, z, r):
 
 
 @torch.jit.script
-def spherical_harmonics(l_max: int, x, y, z):
+def spherical_harmonics(l_max: int, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor):
 
+    """
+    Calculates all the real spherical harmonics up to order l_max.
+
+    Inputs:
+    l_max: maximum order of the output spherical harmonics
+    x, y, z: 1-D tensors, corresponding to the points in 3D Cartesian space for which
+    the spherical harmonics need to be calculated. All three have dimensions [n_points].
+
+    Output:
+    output: list of torch.Tensors, corresponding to each l from 0 to l_max, containing
+    the spherical harmonics. output[l] has shape [n_points, 2*l+1].
+    """
+
+    # Precomputations:
     r = torch.sqrt(x**2+y**2+z**2)
     sqrt_2 = torch.sqrt(torch.tensor([2.0], device=r.device, dtype=r.dtype))
+    one_over_sqrt_2 = 1.0/sqrt_2
     pi = 2.0 * torch.acos(torch.zeros(1, device=r.device))
 
+    # theta-dependent component of the spherical harmonics:
     Qlm = modified_associated_legendre_polynomials(l_max, z, r)
-    one_over_sqrt_2 = 1.0/sqrt_2
+    
+    # Recursive evaluation of c_m = r_(xy)^m * cos(m*phi) and s_m = r_(xy)^m * sin(m*phi):
     c = torch.empty((r.shape[0], l_max+1), device=r.device, dtype=r.dtype)
     s = torch.empty((r.shape[0], l_max+1), device=r.device, dtype=r.dtype)
     c[:, 0] = 1.0
@@ -42,12 +70,15 @@ def spherical_harmonics(l_max: int, x, y, z):
     for m in range(1, l_max+1):
         c[:, m] = c[:, m-1]*x - s[:, m-1]*y
         s[:, m] = s[:, m-1]*x + c[:, m-1]*y
+
+    # phi-dependent component of the spherical harmonics:
     Phi = torch.cat([
         s[:, 1:].flip(dims=[1]),
         one_over_sqrt_2*torch.ones((r.shape[0], 1), device=r.device, dtype=r.dtype),
         c[:, 1:]
     ], dim=-1)
 
+    # Fill the output tensor list:
     output = []
     for l in range(l_max+1):
         m = torch.tensor(list(range(-l, l+1)), dtype=torch.long, device=r.device)
