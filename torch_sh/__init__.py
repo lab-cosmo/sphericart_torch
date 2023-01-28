@@ -1,1 +1,2 @@
-from .spherical_harmonics import spherical_harmonics
+from .spherical_harmonics import spherical_harmonics, spherical_harmonics_gradients
+
