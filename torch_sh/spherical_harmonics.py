@@ -40,6 +40,23 @@ def modified_associated_legendre_polynomials(l_max: int, z: torch.Tensor, r: tor
 
 
 @torch.jit.script
+def phi_dependent_recursions(l_max: int, x: torch.Tensor, y: torch.Tensor):
+    """
+    Recursive evaluation of c_m = r_(xy)^m * cos(m*phi) and s_m = r_(xy)^m * sin(m*phi).
+    """
+    
+    c = torch.empty((x.shape[0], l_max+1), device=x.device, dtype=x.dtype)
+    s = torch.empty((x.shape[0], l_max+1), device=x.device, dtype=x.dtype)
+    c[:, 0] = 1.0
+    s[:, 0] = 0.0
+    for m in range(1, l_max+1):
+        c[:, m] = c[:, m-1].clone()*x - s[:, m-1].clone()*y
+        s[:, m] = s[:, m-1].clone()*x + c[:, m-1].clone()*y
+
+    return c, s
+
+
+@torch.jit.script
 def spherical_harmonics(l_max: int, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor):
 
     """
@@ -64,16 +81,8 @@ def spherical_harmonics(l_max: int, x: torch.Tensor, y: torch.Tensor, z: torch.T
     # theta-dependent component of the spherical harmonics:
     Qlm = modified_associated_legendre_polynomials(l_max, z, r)
     
-    # Recursive evaluation of c_m = r_(xy)^m * cos(m*phi) and s_m = r_(xy)^m * sin(m*phi):
-    c = torch.empty((r.shape[0], l_max+1), device=r.device, dtype=r.dtype)
-    s = torch.empty((r.shape[0], l_max+1), device=r.device, dtype=r.dtype)
-    c[:, 0] = 1.0
-    s[:, 0] = 0.0
-    for m in range(1, l_max+1):
-        c[:, m] = c[:, m-1].clone()*x - s[:, m-1].clone()*y
-        s[:, m] = s[:, m-1].clone()*x + c[:, m-1].clone()*y
-
     # phi-dependent component of the spherical harmonics:
+    c, s = phi_dependent_recursions(l_max, x, y)
     Phi = torch.cat([
         s[:, 1:].flip(dims=[1]),
         one_over_sqrt_2*torch.ones((r.shape[0], 1), device=r.device, dtype=r.dtype),

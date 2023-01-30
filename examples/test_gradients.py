@@ -11,8 +11,9 @@ z = torch.rand((10,))
 
 def check_gradients_against_finite_differences(x: torch.Tensor, y: torch.Tensor, z: torch.Tensor, l_max: int):
 
+    # Finite difference gradients:
     delta = 1e-6
-
+    
     xplus = x + delta
     xminus = x - delta
     yplus = y + delta
@@ -33,13 +34,14 @@ def check_gradients_against_finite_differences(x: torch.Tensor, y: torch.Tensor,
 
     finite_difference_gradients = [xgrad, ygrad, zgrad]
 
+    # Analytical gradients:
     x.requires_grad = True
     y.requires_grad = True
     z.requires_grad = True
-
     spherical_harmonics = torch_sh.spherical_harmonics(l_max, x, y, z)
     analytical_gradients = torch_sh.spherical_harmonics_gradients(spherical_harmonics, x, y, z)
 
+    # Assertions:
     for l in range(l_max+1):
         assert torch.allclose(finite_difference_gradients[0][l], analytical_gradients[0][l])
         assert torch.allclose(finite_difference_gradients[1][l], analytical_gradients[1][l])
@@ -47,6 +49,5 @@ def check_gradients_against_finite_differences(x: torch.Tensor, y: torch.Tensor,
 
 
 l_max = 6
-with torch.autograd.set_detect_anomaly(True):
-    check_gradients_against_finite_differences(x, y, z, l_max)
+check_gradients_against_finite_differences(x, y, z, l_max)
 print("Assertions passed successfully!")
