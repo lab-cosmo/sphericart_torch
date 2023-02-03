@@ -1,59 +1,8 @@
 import torch
 from typing import List
-    
-
-@torch.jit.script
-def factorial(n: torch.Tensor):
-    """
-    A torch-only factorial function.
-    """
-    return torch.exp(torch.lgamma(n+1))
-
-
-@torch.jit.script
-def modified_associated_legendre_polynomials(l_max: int, z: torch.Tensor, r: torch.Tensor):
-
-    """
-    Calculates P_l^m * r^l / r_(xy)^m , where P_l^m is an associated Legendre polynomial.
-    This construction simplifies the calculation in Cartesian coordinates and it avoids the
-    numerical instabilities in the derivatives for points on the z axis. The implementation is
-    based on the standard recurrence relations for P_l^m.
-    """
-
-    q = []
-    for l in range(l_max+1):
-        q.append(
-            torch.empty((l+1, r.shape[0]), dtype = r.dtype, device = r.device)
-        )
-
-    q[0][0] = 1.0
-    for m in range(1, l_max+1):
-        q[m][m] = -(2*m-1)*q[m-1][m-1].clone()
-    for m in range(l_max):
-        q[m+1][m] = (2*m+1)*z*q[m][m].clone()
-    for m in range(l_max-1):
-        for l in range(m+2, l_max+1):
-            q[l][m] = ((2*l-1)*z*q[l-1][m].clone()-(l+m-1)*q[l-2][m].clone()*r**2)/(l-m)
-
-    q = [q_l.swapaxes(0, 1) for q_l in q]
-    return q
-
-
-@torch.jit.script
-def phi_dependent_recursions(l_max: int, x: torch.Tensor, y: torch.Tensor):
-    """
-    Recursive evaluation of c_m = r_(xy)^m * cos(m*phi) and s_m = r_(xy)^m * sin(m*phi).
-    """
-    
-    c = torch.empty((x.shape[0], l_max+1), device=x.device, dtype=x.dtype)
-    s = torch.empty((x.shape[0], l_max+1), device=x.device, dtype=x.dtype)
-    c[:, 0] = 1.0
-    s[:, 0] = 0.0
-    for m in range(1, l_max+1):
-        c[:, m] = c[:, m-1].clone()*x - s[:, m-1].clone()*y
-        s[:, m] = s[:, m-1].clone()*x + c[:, m-1].clone()*y
-
-    return c, s
+from .theta import modified_associated_legendre_polynomials, modified_associated_legendre_polynomials_derivatives
+from .phi import phi_dependent_recursions, phi_dependent_recursions_derivatives
+from .utils import factorial
 
 
 @torch.jit.script
@@ -82,12 +31,7 @@ def spherical_harmonics(l_max: int, x: torch.Tensor, y: torch.Tensor, z: torch.T
     Qlm = modified_associated_legendre_polynomials(l_max, z, r)
     
     # phi-dependent component of the spherical harmonics:
-    c, s = phi_dependent_recursions(l_max, x, y)
-    Phi = torch.cat([
-        s[:, 1:].flip(dims=[1]),
-        one_over_sqrt_2*torch.ones((r.shape[0], 1), device=r.device, dtype=r.dtype),
-        c[:, 1:]
-    ], dim=-1)
+    Phi = phi_dependent_recursions(l_max, x, y)
 
     # Fill the output tensor list:
     output = []
@@ -155,49 +99,6 @@ def spherical_harmonics_gradients(sh_object: List[torch.Tensor], x: torch.Tensor
     return gradients
 
 
-def modified_associated_legendre_polynomials_derivatives(Qlm, x, y):
-
-    l_max = len(Qlm) - 1
-    d_Qlm_d_x = []
-    d_Qlm_d_y = []
-    d_Qlm_d_z = []
-
-    for l in range(l_max+1):
-        d_Qlm_d_x.append(torch.zeros_like(Qlm[l]))
-        d_Qlm_d_y.append(torch.zeros_like(Qlm[l]))
-        d_Qlm_d_z.append(torch.zeros_like(Qlm[l]))
-        if l == 0: continue
-        m = torch.arange(0, l)
-
-        d_Qlm_d_x[l][:, :-2] = x.unsqueeze(dim=-1)*Qlm[l-1][:, 1:]
-        d_Qlm_d_y[l][:, :-2] = y.unsqueeze(dim=-1)*Qlm[l-1][:, 1:]
-        d_Qlm_d_z[l][:, :-1] = (l+m)*Qlm[l-1]
-
-    grad_Qlm = [d_Qlm_d_x, d_Qlm_d_y, d_Qlm_d_z]
-
-    return grad_Qlm
-
-
-def phi_dependent_recursions_derivatives(c, s, x, y):
-
-    l_max = c.shape[1] - 1
-    m = torch.arange(1, l_max+1)
-    d_c_d_x = torch.zeros_like(c)
-    d_c_d_y = torch.zeros_like(c)
-    d_s_d_x = torch.zeros_like(s)
-    d_s_d_y = torch.zeros_like(s)
-
-    d_c_d_x[:, 1:] = m*c[:, :-1]
-    d_s_d_x[:, 1:] = m*s[:, :-1]
-    d_c_d_y[:, 1:] = -m*s[:, :-1]
-    d_s_d_y[:, 1:] = m*c[:, :-1]
-
-    grad_c = [d_c_d_x, d_c_d_y]
-    grad_s = [d_s_d_x, d_s_d_y]
-
-    return grad_c, grad_s
-
-
 def spherical_harmonics_custom_gradients(l_max: int, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor):
 
     r = torch.sqrt(x**2+y**2+z**2)
@@ -210,27 +111,8 @@ def spherical_harmonics_custom_gradients(l_max: int, x: torch.Tensor, y: torch.T
     grad_Qlm = modified_associated_legendre_polynomials_derivatives(Qlm, x, y)
     
     # phi-dependent component of the spherical harmonics:
-    c, s = phi_dependent_recursions(l_max, x, y)
-    grad_c, grad_s = phi_dependent_recursions_derivatives(c, s, x, y)
-
-    Phi = torch.cat([
-        s[:, 1:].flip(dims=[1]),
-        one_over_sqrt_2*torch.ones((r.shape[0], 1), device=r.device, dtype=r.dtype),
-        c[:, 1:]
-    ], dim=-1)
-
-    grad_Phi = [
-        torch.cat([
-            grad_s[0][:, 1:].flip(dims=[1]),
-            torch.zeros((r.shape[0], 1), device=r.device, dtype=r.dtype),
-            grad_c[0][:, 1:]
-        ], dim=-1),
-        torch.cat([
-            grad_s[1][:, 1:].flip(dims=[1]),
-            torch.zeros((r.shape[0], 1), device=r.device, dtype=r.dtype),
-            grad_c[1][:, 1:]
-        ], dim=-1)
-    ]
+    Phi = phi_dependent_recursions(l_max, x, y)
+    grad_Phi = phi_dependent_recursions_derivatives(Phi)
 
     # Fill the output tensor list:
     gradients = []
@@ -295,8 +177,3 @@ def spherical_harmonics_custom_gradients(l_max: int, x: torch.Tensor, y: torch.T
         )
 
     return gradients
-
-
-
-    
-
