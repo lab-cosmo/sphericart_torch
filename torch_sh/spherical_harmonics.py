@@ -5,6 +5,11 @@ from .phi import phi_dependent_recursions, phi_dependent_recursions_derivatives
 from .utils import factorial
 
 
+from time import time
+@torch.jit.ignore
+def jtime() -> float:
+    return time()
+
 @torch.jit.script
 def spherical_harmonics(l_max: int, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor):
 
@@ -22,19 +27,22 @@ def spherical_harmonics(l_max: int, x: torch.Tensor, y: torch.Tensor, z: torch.T
     """
 
     # Precomputations:
-    r = torch.sqrt(x**2+y**2+z**2)
+    r2 = (x**2+y**2+z**2)
+    r = torch.sqrt(r2)
     sqrt_2 = torch.sqrt(torch.tensor([2.0], device=r.device, dtype=r.dtype))
     one_over_sqrt_2 = 1.0/sqrt_2
     pi = 2.0 * torch.acos(torch.zeros(1, device=r.device))
 
     # theta-dependent component of the spherical harmonics:
     time_q = -jtime()
-    Qlm = modified_associated_legendre_polynomials(l_max, z, r)
+    Qlm = modified_associated_legendre_polynomials(l_max, z, r2)
     time_q += jtime()        
     
     # phi-dependent component of the spherical harmonics:
+    time_p = -jtime()
     Phi = phi_dependent_recursions(l_max, x, y)
-
+    time_p += jtime()     
+    
     # Fill the output tensor list:
     time_y = -jtime()
     output = []
@@ -107,12 +115,13 @@ def spherical_harmonics_gradients(sh_object: List[torch.Tensor], x: torch.Tensor
 
 def spherical_harmonics_custom_gradients(l_max: int, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor):
 
-    r = torch.sqrt(x**2+y**2+z**2)
+    r2 = (x**2+y**2+z**2)
+    r = torch.sqrt(r2)
     sqrt_2 = torch.sqrt(torch.tensor([2.0], device=r.device, dtype=r.dtype))
     pi = 2.0 * torch.acos(torch.zeros(1, device=r.device))
 
     # theta-dependent component of the spherical harmonics:
-    Qlm = modified_associated_legendre_polynomials(l_max, z, r)
+    Qlm = modified_associated_legendre_polynomials(l_max, z, r2)
     grad_Qlm = modified_associated_legendre_polynomials_derivatives(Qlm, x, y)
     
     # phi-dependent component of the spherical harmonics:

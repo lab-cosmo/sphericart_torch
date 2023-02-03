@@ -3,7 +3,7 @@ from typing import List
 
 
 @torch.jit.script
-def modified_associated_legendre_polynomials(l_max: int, z: torch.Tensor, r: torch.Tensor):
+def modified_associated_legendre_polynomials(l_max: int, z: torch.Tensor, r2: torch.Tensor):
 
     """
     Calculates Q_l^m = P_l^m * r^l / r_(xy)^m , where P_l^m is an associated Legendre polynomial.
@@ -15,7 +15,7 @@ def modified_associated_legendre_polynomials(l_max: int, z: torch.Tensor, r: tor
     Qlm = []
     for l in range(l_max+1):
         Qlm.append(
-            torch.empty((l+1, r.shape[0]), dtype = r.dtype, device = r.device)
+            torch.empty((l+1, z.shape[0]), dtype = z.dtype, device = z.device)
         )
 
     Qlm[0][0] = 1.0
@@ -24,7 +24,7 @@ def modified_associated_legendre_polynomials(l_max: int, z: torch.Tensor, r: tor
         Qlm[m][m-1] = (2*m-1)*z*Qlm[m-1][m-1].clone()
     for m in range(l_max-1):
         for l in range(m+2, l_max+1):
-            Qlm[l][m] = ((2*l-1)*z*Qlm[l-1][m].clone()-(l+m-1)*Qlm[l-2][m].clone()*r**2)/(l-m)
+            Qlm[l][m] = ((2*l-1)*z*Qlm[l-1][m].clone()-(l+m-1)*Qlm[l-2][m].clone()*r2)/(l-m)
 
     Qlm = [Qlm_l.swapaxes(0, 1) for Qlm_l in Qlm]
     return Qlm
