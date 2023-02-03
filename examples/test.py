@@ -31,7 +31,8 @@ def test_sh_against_scipy(x: np.ndarray, y: np.ndarray, z: np.ndarray, l: int, m
     y = torch.tensor(y)
     z = torch.tensor(z)
 
-    sh_torch = torch_sh.spherical_harmonics(l, x, y, z)
+    torch_sh.SphericalHarmonics.initialize("cpu")
+    sh_torch = torch_sh.SphericalHarmonics.compute(l, x, y, z)
     sh_torch_l_m = sh_torch[l][:, l+m]
 
     assert torch.allclose(torch.tensor(sh_scipy_l_m), sh_torch_l_m), f"assertion failed for l={l}, m={m}"

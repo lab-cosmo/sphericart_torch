@@ -24,6 +24,7 @@ def phi_dependent_recursions(l_max: int, x: torch.Tensor, y: torch.Tensor):
     return Phi
 
 
+@torch.jit.script
 def phi_dependent_recursions_derivatives(Phi: torch.Tensor):
 
     l_max = (Phi.shape[1] - 1) // 2
