@@ -154,5 +154,149 @@ def spherical_harmonics_gradients(sh_object: List[torch.Tensor], x: torch.Tensor
     gradients = [x_grad, y_grad, z_grad]
     return gradients
 
-        
+
+def modified_associated_legendre_polynomials_derivatives(Qlm, x, y):
+
+    l_max = len(Qlm) - 1
+    d_Qlm_d_x = []
+    d_Qlm_d_y = []
+    d_Qlm_d_z = []
+
+    for l in range(l_max+1):
+        d_Qlm_d_x.append(torch.zeros_like(Qlm[l]))
+        d_Qlm_d_y.append(torch.zeros_like(Qlm[l]))
+        d_Qlm_d_z.append(torch.zeros_like(Qlm[l]))
+        if l == 0: continue
+        m = torch.arange(0, l)
+
+        d_Qlm_d_x[l][:, :-2] = x.unsqueeze(dim=-1)*Qlm[l-1][:, 1:]
+        d_Qlm_d_y[l][:, :-2] = y.unsqueeze(dim=-1)*Qlm[l-1][:, 1:]
+        d_Qlm_d_z[l][:, :-1] = (l+m)*Qlm[l-1]
+
+    grad_Qlm = [d_Qlm_d_x, d_Qlm_d_y, d_Qlm_d_z]
+
+    return grad_Qlm
+
+
+def phi_dependent_recursions_derivatives(c, s, x, y):
+
+    l_max = c.shape[1] - 1
+    m = torch.arange(1, l_max+1)
+    d_c_d_x = torch.zeros_like(c)
+    d_c_d_y = torch.zeros_like(c)
+    d_s_d_x = torch.zeros_like(s)
+    d_s_d_y = torch.zeros_like(s)
+
+    d_c_d_x[:, 1:] = m*c[:, :-1]
+    d_s_d_x[:, 1:] = m*s[:, :-1]
+    d_c_d_y[:, 1:] = -m*s[:, :-1]
+    d_s_d_y[:, 1:] = m*c[:, :-1]
+
+    grad_c = [d_c_d_x, d_c_d_y]
+    grad_s = [d_s_d_x, d_s_d_y]
+
+    return grad_c, grad_s
+
+
+def spherical_harmonics_custom_gradients(l_max: int, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor):
+
+    r = torch.sqrt(x**2+y**2+z**2)
+    sqrt_2 = torch.sqrt(torch.tensor([2.0], device=r.device, dtype=r.dtype))
+    one_over_sqrt_2 = 1.0/sqrt_2
+    pi = 2.0 * torch.acos(torch.zeros(1, device=r.device))
+
+    # theta-dependent component of the spherical harmonics:
+    Qlm = modified_associated_legendre_polynomials(l_max, z, r)
+    grad_Qlm = modified_associated_legendre_polynomials_derivatives(Qlm, x, y)
+    
+    # phi-dependent component of the spherical harmonics:
+    c, s = phi_dependent_recursions(l_max, x, y)
+    grad_c, grad_s = phi_dependent_recursions_derivatives(c, s, x, y)
+
+    Phi = torch.cat([
+        s[:, 1:].flip(dims=[1]),
+        one_over_sqrt_2*torch.ones((r.shape[0], 1), device=r.device, dtype=r.dtype),
+        c[:, 1:]
+    ], dim=-1)
+
+    grad_Phi = [
+        torch.cat([
+            grad_s[0][:, 1:].flip(dims=[1]),
+            torch.zeros((r.shape[0], 1), device=r.device, dtype=r.dtype),
+            grad_c[0][:, 1:]
+        ], dim=-1),
+        torch.cat([
+            grad_s[1][:, 1:].flip(dims=[1]),
+            torch.zeros((r.shape[0], 1), device=r.device, dtype=r.dtype),
+            grad_c[1][:, 1:]
+        ], dim=-1)
+    ]
+
+    # Fill the output tensor list:
+    gradients = []
+
+    gradients.append([])
+    for l in range(l_max+1):
+        m = torch.tensor(list(range(-l, l+1)), dtype=torch.long, device=r.device)
+        abs_m = torch.abs(m)
+        gradients[0].append(
+            torch.pow(-1, m) * sqrt_2
+            * torch.sqrt((2*l+1)/(4*pi)*factorial(l-abs_m)/factorial(l+abs_m))
+            * ( Qlm[l][:, abs_m]
+            * Phi[:, l_max-l:l_max+l+1]
+            * (-l*x*r**(-l-2)).unsqueeze(dim=-1)
+            +
+            grad_Qlm[0][l][:, abs_m]
+            * Phi[:, l_max-l:l_max+l+1]
+            / (r**l).unsqueeze(dim=-1)
+            +
+            Qlm[l][:, abs_m]
+            * grad_Phi[0][:, l_max-l:l_max+l+1]
+            / (r**l).unsqueeze(dim=-1)
+            )
+        )
+    
+    gradients.append([])
+    for l in range(l_max+1):
+        m = torch.tensor(list(range(-l, l+1)), dtype=torch.long, device=r.device)
+        abs_m = torch.abs(m)
+        gradients[1].append(
+            torch.pow(-1, m) * sqrt_2
+            * torch.sqrt((2*l+1)/(4*pi)*factorial(l-abs_m)/factorial(l+abs_m))
+            * ( Qlm[l][:, abs_m]
+            * Phi[:, l_max-l:l_max+l+1]
+            * (-l*y*r**(-l-2)).unsqueeze(dim=-1)
+            +
+            grad_Qlm[1][l][:, abs_m]
+            * Phi[:, l_max-l:l_max+l+1]
+            / (r**l).unsqueeze(dim=-1)
+            +
+            Qlm[l][:, abs_m]
+            * grad_Phi[1][:, l_max-l:l_max+l+1]
+            / (r**l).unsqueeze(dim=-1)
+            )
+        )
+
+    gradients.append([])
+    for l in range(l_max+1):
+        m = torch.tensor(list(range(-l, l+1)), dtype=torch.long, device=r.device)
+        abs_m = torch.abs(m)
+        gradients[2].append(
+            torch.pow(-1, m) * sqrt_2
+            * torch.sqrt((2*l+1)/(4*pi)*factorial(l-abs_m)/factorial(l+abs_m))
+            * ( Qlm[l][:, abs_m]
+            * Phi[:, l_max-l:l_max+l+1]
+            * (-l*z*r**(-l-2)).unsqueeze(dim=-1)
+            +
+            grad_Qlm[2][l][:, abs_m]
+            * Phi[:, l_max-l:l_max+l+1]
+            / (r**l).unsqueeze(dim=-1)
+            )
+        )
+
+    return gradients
+
+
+
+    
 
