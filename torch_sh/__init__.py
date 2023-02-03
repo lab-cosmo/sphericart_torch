@@ -1,3 +1,2 @@
-from .spherical_harmonics import spherical_harmonics, spherical_harmonics_gradients
+from .spherical_harmonics import spherical_harmonics, spherical_harmonics_gradients, spherical_harmonics_custom_gradients
 from .sh_module import SphericalHarmonics, SphericalHarmonicsFW
-
