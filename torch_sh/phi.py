@@ -27,7 +27,7 @@ def phi_dependent_recursions(l_max: int, x: torch.Tensor, y: torch.Tensor):
 @torch.jit.script
 def phi_dependent_recursions_derivatives(Phi: torch.Tensor):
 
-    l_max = Phi.shape[1] - 1
+    l_max = (Phi.shape[1] - 1)//2
     if l_max == 0:  # Special case where the below stacking would not work.
         grad_Phi = [
             torch.zeros((Phi.shape[0], 1), device=Phi.device, dtype=Phi.dtype),
@@ -36,7 +36,6 @@ def phi_dependent_recursions_derivatives(Phi: torch.Tensor):
         return grad_Phi
 
     m = torch.arange(-l_max, l_max+1)
-
     grad_Phi = [
         m*torch.cat([
             Phi[:, 1:l_max],
