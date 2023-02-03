@@ -1,6 +1,9 @@
 import torch
 from typing import List
-    
+from time import time
+@torch.jit.ignore
+def jtime() -> float:
+    return time()
 
 @torch.jit.script
 def factorial(n: torch.Tensor):
@@ -79,17 +82,22 @@ def spherical_harmonics(l_max: int, x: torch.Tensor, y: torch.Tensor, z: torch.T
     pi = 2.0 * torch.acos(torch.zeros(1, device=r.device))
 
     # theta-dependent component of the spherical harmonics:
+    time_q = -jtime()
     Qlm = modified_associated_legendre_polynomials(l_max, z, r)
+    time_q += jtime()        
     
     # phi-dependent component of the spherical harmonics:
+    time_p = -jtime()
     c, s = phi_dependent_recursions(l_max, x, y)
     Phi = torch.cat([
         s[:, 1:].flip(dims=[1]),
         one_over_sqrt_2*torch.ones((r.shape[0], 1), device=r.device, dtype=r.dtype),
         c[:, 1:]
-    ], dim=-1)
-
+    ], dim=-1)    
+    time_p += jtime()
+    
     # Fill the output tensor list:
+    time_y = -jtime()
     output = []
     for l in range(l_max+1):
         m = torch.tensor(list(range(-l, l+1)), dtype=torch.long, device=r.device)
@@ -101,7 +109,10 @@ def spherical_harmonics(l_max: int, x: torch.Tensor, y: torch.Tensor, z: torch.T
             * Phi[:, l_max-l:l_max+l+1]
             / (r**l).unsqueeze(dim=-1)
         )
-
+    time_y += jtime()
+    
+    print("timings ", time_q, time_p, time_y)
+    
     return output
 
 
