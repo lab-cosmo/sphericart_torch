@@ -13,8 +13,7 @@ l_max = 5
 
 print("Forward pass")
 start_time = time.time()
-torch_sh.SphericalHarmonics.initialize("cpu", forward_gradients=False)
-sh = torch_sh.SphericalHarmonics.compute(l_max, x, y, z)
+sh = torch_sh.reference_spherical_harmonics(l_max, x, y, z)
 finish_time = time.time()
 print(f"done in {finish_time-start_time} seconds")
 

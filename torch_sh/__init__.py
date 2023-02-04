@@ -1,2 +1,3 @@
 from .spherical_harmonics import SphericalHarmonics
-
+from .reference import reference_spherical_harmonics
+from .reference_gradients import reference_spherical_harmonics_gradients

@@ -21,12 +21,13 @@ def check_gradients_against_finite_differences(x: torch.Tensor, y: torch.Tensor,
     zplus = z + delta
     zminus = z - delta
 
-    sh_x_plus = torch_sh.spherical_harmonics(l_max, xplus, y, z)
-    sh_x_minus = torch_sh.spherical_harmonics(l_max, xminus, y, z)
-    sh_y_plus = torch_sh.spherical_harmonics(l_max, x, yplus, z)
-    sh_y_minus = torch_sh.spherical_harmonics(l_max, x, yminus, z)
-    sh_z_plus = torch_sh.spherical_harmonics(l_max, x, y, zplus)
-    sh_z_minus = torch_sh.spherical_harmonics(l_max, x, y, zminus)
+    torch_sh.SphericalHarmonics.initialize("cpu", forward_gradients=False)
+    sh_x_plus = torch_sh.SphericalHarmonics.compute(l_max, xplus, y, z)
+    sh_x_minus = torch_sh.SphericalHarmonics.compute(l_max, xminus, y, z)
+    sh_y_plus = torch_sh.SphericalHarmonics.compute(l_max, x, yplus, z)
+    sh_y_minus = torch_sh.SphericalHarmonics.compute(l_max, x, yminus, z)
+    sh_z_plus = torch_sh.SphericalHarmonics.compute(l_max, x, y, zplus)
+    sh_z_minus = torch_sh.SphericalHarmonics.compute(l_max, x, y, zminus)
 
     xgrad = [(sh_x_plus[l] - sh_x_minus[l]) / (2.0 * delta) for l in range(l_max+1)]
     ygrad = [(sh_y_plus[l] - sh_y_minus[l]) / (2.0 * delta) for l in range(l_max+1)]
@@ -38,8 +39,8 @@ def check_gradients_against_finite_differences(x: torch.Tensor, y: torch.Tensor,
     x.requires_grad = True
     y.requires_grad = True
     z.requires_grad = True
-    spherical_harmonics = torch_sh.spherical_harmonics(l_max, x, y, z)
-    analytical_gradients = torch_sh.spherical_harmonics_gradients(spherical_harmonics, x, y, z)
+    spherical_harmonics = torch_sh.SphericalHarmonics.compute(l_max, x, y, z)
+    analytical_gradients = torch_sh.reference_spherical_harmonics_gradients(spherical_harmonics, x, y, z)
 
     # Assertions:
     for l in range(l_max+1):
