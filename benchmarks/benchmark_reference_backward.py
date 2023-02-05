@@ -2,14 +2,15 @@ import torch
 import torch_sh
 import time
 torch.set_default_dtype(torch.float64)
+from torch.profiler import profile
 
 device = "cpu"
 
-x = torch.rand((500,), device=device, requires_grad=True)
-y = torch.rand((500,), device=device, requires_grad=True)
-z = torch.rand((500,), device=device, requires_grad=True)
+x = torch.rand((200000,), device=device, requires_grad=True)
+y = torch.rand((200000,), device=device, requires_grad=True)
+z = torch.rand((200000,), device=device, requires_grad=True)
 
-l_max = 5
+l_max = 10
 
 print("Forward pass")
 start_time = time.time()
@@ -24,6 +25,10 @@ for tensor in sh:
 print()
 print("Backward pass")
 start_time = time.time()
-dummy_loss.backward()
+with profile() as prof:
+    dummy_loss.backward()
 finish_time = time.time()
 print(f"done in {finish_time-start_time} seconds")
+
+print()
+print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=20))

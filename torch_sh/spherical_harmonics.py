@@ -1,5 +1,5 @@
 import torch
-from typing import List
+from typing import List, Tuple
 from .theta import modified_associated_legendre_polynomials, modified_associated_legendre_polynomials_derivatives
 from .phi import phi_dependent_recursions, phi_dependent_recursions_derivatives
 from .combine import combine_into_spherical_harmonics, combine_into_spherical_harmonics_gradients
@@ -40,14 +40,13 @@ class SphericalHarmonics(torch.autograd.Function):
 
 
     @staticmethod
-    def forward(ctx: torch.autograd.function.FunctionCtx, l_max: int, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor):
+    def forward(ctx, l_max: int, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor):
 
         r = torch.sqrt(x**2+y**2+z**2)
         Qlm = modified_associated_legendre_polynomials(l_max, z, r)
         Phi = phi_dependent_recursions(l_max, x, y)
         Y = combine_into_spherical_harmonics(Qlm, Phi, r)
 
-        ctx.l_max = l_max
         ctx.Qlm = Qlm
         ctx.Phi = Phi
         ctx.r = r
@@ -57,21 +56,37 @@ class SphericalHarmonics(torch.autograd.Function):
 
 
     @staticmethod
+    # @torch.jit.script
     def backward(ctx, *grad_output):
 
-        # theta-dependent component of the spherical harmonics:
         x, y, z = ctx.saved_tensors
-        Qlm = ctx.Qlm
+        grad_Y = SphericalHarmonics.spherical_harmonics_custom_gradients(ctx.Qlm, ctx.Phi, x, y, z, ctx.r)
+        d_input_d_x, d_input_d_y, d_input_d_z = SphericalHarmonics.calculate_gradients(grad_output, grad_Y)
+
+        return None, d_input_d_x, d_input_d_y, d_input_d_z
+
+
+    @torch.jit.script
+    def spherical_harmonics_custom_gradients(Qlm: List[torch.Tensor], Phi: torch.Tensor, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor, r: torch.Tensor):
+
+        l_max = (Phi.shape[1] - 1) // 2
+
+        # theta-dependent component of the spherical harmonics:
+        Qlm = modified_associated_legendre_polynomials(l_max, z, r)
         grad_Qlm = modified_associated_legendre_polynomials_derivatives(Qlm, x, y)
         
         # phi-dependent component of the spherical harmonics:
-        Phi = ctx.Phi
+        Phi = phi_dependent_recursions(l_max, x, y)
         grad_Phi = phi_dependent_recursions_derivatives(Phi)
 
-        r = ctx.r
         grad_Y = combine_into_spherical_harmonics_gradients(Qlm, Phi, grad_Qlm, grad_Phi, x, y, z, r)
+        return grad_Y
 
-        l_max = ctx.l_max
+
+    @torch.jit.script
+    def calculate_gradients(grad_output: List[torch.Tensor], grad_Y: List[List[torch.Tensor]]):
+        l_max = len(grad_output) - 1
+
         d_input_d_x = torch.sum(
             torch.cat(
                 [grad_output[l]*grad_Y[0][l] for l in range(l_max+1)], 
@@ -94,22 +109,5 @@ class SphericalHarmonics(torch.autograd.Function):
             dim = 1
         )
 
-        return None, d_input_d_x, d_input_d_y, d_input_d_z
-
-
-    @torch.jit.script
-    def spherical_harmonics_custom_gradients(Qlm: List[torch.Tensor], Phi: torch.Tensor, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor, r: torch.Tensor):
-
-        l_max = (Phi.shape[1] - 1) // 2
-
-        # theta-dependent component of the spherical harmonics:
-        Qlm = modified_associated_legendre_polynomials(l_max, z, r)
-        grad_Qlm = modified_associated_legendre_polynomials_derivatives(Qlm, x, y)
-        
-        # phi-dependent component of the spherical harmonics:
-        Phi = phi_dependent_recursions(l_max, x, y)
-        grad_Phi = phi_dependent_recursions_derivatives(Phi)
-
-        grad_Y = combine_into_spherical_harmonics_gradients(Qlm, Phi, grad_Qlm, grad_Phi, x, y, z, r)
-        return grad_Y
+        return d_input_d_x, d_input_d_y, d_input_d_z
 
