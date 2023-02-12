@@ -31,7 +31,7 @@ def test_sh_against_scipy(x: np.ndarray, y: np.ndarray, z: np.ndarray, l: int, m
     y = torch.tensor(y)
     z = torch.tensor(z)
 
-    sh_calculator = torch_sh.SphericalHarmonics(l, "cpu")
+    sh_calculator = torch_sh.ReferenceSphericalHarmonics(l, "cpu")
     sh_torch = sh_calculator.compute(l, x, y, z)
     sh_torch_l_m = sh_torch[l][:, l+m]
 

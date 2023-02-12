@@ -4,7 +4,7 @@ from typing import List
 
 
 @torch.jit.script
-def combine_into_spherical_harmonics(Qlm: List[torch.Tensor], Phi: torch.Tensor, r: torch.Tensor):
+def combine_into_spherical_harmonics(Flm: List[torch.Tensor], Qlm: List[torch.Tensor], Phi: torch.Tensor, r: torch.Tensor):
 
     l_max = (Phi.shape[1] - 1) // 2
     Y = []
@@ -12,8 +12,7 @@ def combine_into_spherical_harmonics(Qlm: List[torch.Tensor], Phi: torch.Tensor,
         m = torch.tensor(list(range(-l, l+1)), dtype=torch.long, device=r.device)
         abs_m = torch.abs(m)
         Y.append(
-            torch.pow(-1, m) * torch.sqrt(torch.tensor([2.0], dtype=r.dtype, device=r.device))
-            * torch.sqrt((2*l+1)/(4.0*2.0*torch.acos(torch.zeros(1, device=r.device)))*factorial(l-abs_m)/factorial(l+abs_m))
+            Flm[l][abs_m]
             * Qlm[l][:, abs_m]
             * Phi[:, l_max-l:l_max+l+1]
             / (r**l).unsqueeze(dim=-1)
@@ -23,6 +22,7 @@ def combine_into_spherical_harmonics(Qlm: List[torch.Tensor], Phi: torch.Tensor,
 
 @torch.jit.script
 def combine_into_spherical_harmonics_gradients(
+        Flm: List[torch.Tensor], 
         Qlm: List[torch.Tensor], 
         Phi: torch.Tensor, 
         grad_Qlm: List[List[torch.Tensor]], 
@@ -42,8 +42,7 @@ def combine_into_spherical_harmonics_gradients(
         m = torch.tensor(list(range(-l, l+1)), dtype=torch.long, device=r.device)
         abs_m = torch.abs(m)
         grad_Y[0].append(
-            torch.pow(-1, m) * torch.sqrt(torch.tensor([2.0], dtype=r.dtype, device=r.device))
-            * torch.sqrt((2*l+1)/(4.0*2.0*torch.acos(torch.zeros(1, device=r.device)))*factorial(l-abs_m)/factorial(l+abs_m))
+            Flm[l][abs_m]
             * ( Qlm[l][:, abs_m]
             * Phi[:, l_max-l:l_max+l+1]
             * (-l*x*r**(-l-2)).unsqueeze(dim=-1)
@@ -63,8 +62,7 @@ def combine_into_spherical_harmonics_gradients(
         m = torch.tensor(list(range(-l, l+1)), dtype=torch.long, device=r.device)
         abs_m = torch.abs(m)
         grad_Y[1].append(
-            torch.pow(-1, m) * torch.sqrt(torch.tensor([2.0], dtype=r.dtype, device=r.device))
-            * torch.sqrt((2*l+1)/(4.0*2.0*torch.acos(torch.zeros(1, device=r.device)))*factorial(l-abs_m)/factorial(l+abs_m))
+            Flm[l][abs_m]
             * ( Qlm[l][:, abs_m]
             * Phi[:, l_max-l:l_max+l+1]
             * (-l*y*r**(-l-2)).unsqueeze(dim=-1)
@@ -84,8 +82,7 @@ def combine_into_spherical_harmonics_gradients(
         m = torch.tensor(list(range(-l, l+1)), dtype=torch.long, device=r.device)
         abs_m = torch.abs(m)
         grad_Y[2].append(
-            torch.pow(-1, m) * torch.sqrt(torch.tensor([2.0], dtype=r.dtype, device=r.device))
-            * torch.sqrt((2*l+1)/(4.0*2.0*torch.acos(torch.zeros(1, device=r.device)))*factorial(l-abs_m)/factorial(l+abs_m))
+            Flm[l][abs_m]
             * ( Qlm[l][:, abs_m]
             * Phi[:, l_max-l:l_max+l+1]
             * (-l*z*r**(-l-2)).unsqueeze(dim=-1)

@@ -6,16 +6,18 @@ from torch.profiler import profile
 
 device = "cpu"
 
-x = torch.rand((200000,), device=device, requires_grad=True)
-y = torch.rand((200000,), device=device, requires_grad=True)
-z = torch.rand((200000,), device=device, requires_grad=True)
-
 l_max = 10
+sh_calculator = torch_sh.SphericalHarmonics(l_max, device)
+
+x = torch.rand((500,), device=device, requires_grad=True)
+y = torch.rand((500,), device=device, requires_grad=True)
+z = torch.rand((500,), device=device, requires_grad=True)
+
+# sh = torch_sh.SphericalHarmonics.compute(l_max, x, y, z)
 
 print("Forward pass")
 start_time = time.time()
-torch_sh.SphericalHarmonics.initialize("cpu", forward_gradients=False)
-sh = torch_sh.SphericalHarmonics.compute(l_max, x, y, z)
+sh = sh_calculator.compute(l_max, x, y, z)
 finish_time = time.time()
 print(f"done in {finish_time-start_time} seconds")
 
