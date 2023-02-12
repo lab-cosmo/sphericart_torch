@@ -41,10 +41,9 @@ def check_gradients_against_autograd(x: torch.Tensor, y: torch.Tensor, z: torch.
     dummy_loss.backward()
 
     # Assertions:
-    for l in range(l_max+1):
-        assert torch.allclose(x.grad, x_grad)
-        assert torch.allclose(y.grad, y_grad)
-        assert torch.allclose(z.grad, z_grad)
+    assert torch.allclose(x.grad, x_grad)
+    assert torch.allclose(y.grad, y_grad)
+    assert torch.allclose(z.grad, z_grad)
 
 
 l_max = 6
