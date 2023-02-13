@@ -9,11 +9,11 @@ device = "cpu"
 l_max = 10
 sh_calculator = torch_sh.SphericalHarmonics(l_max, device)
 
-xyz = torch.rand((500, 3), device=device, requires_grad=True)
+xyz = torch.rand((10000, 3), device=device, requires_grad=True)
 
 print("Forward pass")
 start_time = time.time()
-with profile() as prof:
+if True: #with profile() as prof:
     sh = sh_calculator.compute(xyz)
 finish_time = time.time()
 print(f"done in {finish_time-start_time} seconds")
@@ -23,7 +23,7 @@ dummy_loss = torch.sum(sh)
 print()
 print("Backward pass")
 start_time = time.time()
-if True: #with profile() as prof:
+if True:# with profile() as prof:
     dummy_loss.backward()
 finish_time = time.time()
 print(f"done in {finish_time-start_time} seconds")
