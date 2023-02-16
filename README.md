@@ -1,2 +1,2 @@
-# torch-sh
-Spherical harmonics in Pytorch
+# sphericart_torch
+Cartesian spherical harmonics in Pytorch
