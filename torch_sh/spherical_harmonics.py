@@ -10,6 +10,8 @@ class SphericalHarmonics:
         self.prefactors = compute_prefactors(l_max, device)
 
     def compute(self, xyz):
+        
+        #print (self.prefactors.dtype)
         Y_tilde = spherical_harmonics(self.l_max, self.prefactors, xyz)
 
         r = torch.sqrt(torch.sum(xyz**2, dim = 1))
