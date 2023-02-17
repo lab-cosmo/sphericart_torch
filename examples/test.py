@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import scipy as sp
 from scipy import special
-import torch_sh
+import sphericart_torch
 torch.set_default_dtype(torch.float64)
 
 xyz = torch.rand(10, 3)
@@ -29,7 +29,7 @@ def test_sh_against_scipy(xyz, l, m):
         sh_scipy_l_m = complex_sh_scipy_l_m.real
 
     # Torch spherical harmonics:
-    sh_calculator = torch_sh.SphericalHarmonics(l, "cpu")
+    sh_calculator = sphericart_torch.SphericalHarmonics(l, "cpu")
     sh_torch = sh_calculator.compute(xyz)
     sh_torch_l_m = sh_torch[:, l**2+l+m]
 
