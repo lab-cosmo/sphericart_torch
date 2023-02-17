@@ -1,0 +1,3 @@
+[submodule "torch_sh/extension/sphericart"]
+	path = torch_sh/extension/sphericart
+	url = https://github.com/lab-cosmo/sphericart
