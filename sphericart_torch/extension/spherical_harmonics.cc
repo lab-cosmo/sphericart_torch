@@ -27,9 +27,9 @@ class SphericalHarmonics : public torch::autograd::Function<SphericalHarmonics> 
             int l_max = ctx->saved_data["l_max"].toInt();
             auto saved = ctx->get_saved_variables();
             torch::Tensor xyz = saved[0];
-            if (! xyz.requires_grad() ) {
-                throw "Cannot compute backwards, no derivatives have been computed";
-            }
+            // if (! xyz.requires_grad() ) {
+            //    throw "Cannot compute backwards, no derivatives have been computed";
+            // }
             torch::Tensor spherical_harmonics_gradients = saved[1];
             int n_samples = xyz.sizes()[0];
 
