@@ -12,12 +12,14 @@ class SphericalHarmonics:
     def compute(self, xyz):
         xyz = xyz.contiguous()  # not necessary in the vast majority of cases, but the pointer indexing won't work otherwise
         
-        Y_tilde = spherical_harmonics(self.l_max, self.prefactors, xyz)
+        Y = spherical_harmonics(self.l_max, self.prefactors, xyz)
 
+        # """
         r = torch.sqrt(torch.sum(xyz**2, dim = 1))
         r_l = torch.cat(
             [(r**(-l)).unsqueeze(dim=-1).repeat(1, 2*l+1) for l in range(self.l_max+1)],
             dim = 1
         )
-        Y = Y_tilde*r_l
+        Y = Y*r_l
+        # """
         return Y
