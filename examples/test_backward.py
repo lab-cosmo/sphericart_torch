@@ -1,5 +1,5 @@
 import torch
-import torch_sh
+import sphericart_torch
 
 torch.set_default_dtype(torch.float64)
 torch.random.manual_seed(0)
@@ -10,7 +10,7 @@ xyz = torch.rand((10, 3))
 
 def check_gradients_against_finite_differences(xyz: torch.Tensor, l_max: int):
 
-    sh_calculator = torch_sh.SphericalHarmonics(l_max, device)
+    sh_calculator = sphericart_torch.SphericalHarmonics(l_max, device)
 
     # Finite differences:
     delta = 1e-6
