@@ -7,7 +7,7 @@ from torch.profiler import profile
 device = "cpu"
 
 l_max = 10
-sh_calculator = sphericart_torch.SphericalHarmonics(l_max, device)
+sh_calculator = sphericart_torch.SphericalHarmonics(l_max, device, normalize=True)
 
 xyz = torch.rand((10000, 3), device=device, requires_grad=True)
 

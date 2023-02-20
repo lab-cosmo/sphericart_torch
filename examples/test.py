@@ -29,7 +29,7 @@ def test_sh_against_scipy(xyz, l, m):
         sh_scipy_l_m = complex_sh_scipy_l_m.real
 
     # Torch spherical harmonics:
-    sh_calculator = sphericart_torch.SphericalHarmonics(l, "cpu")
+    sh_calculator = sphericart_torch.SphericalHarmonics(l, "cpu", normalize=True)
     sh_torch = sh_calculator.compute(xyz)
     sh_torch_l_m = sh_torch[:, l**2+l+m]
 
