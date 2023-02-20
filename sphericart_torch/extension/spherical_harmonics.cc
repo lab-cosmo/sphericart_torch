@@ -24,7 +24,6 @@ class SphericalHarmonics : public torch::autograd::Function<SphericalHarmonics> 
         }
 
         static std::vector<torch::Tensor> backward(torch::autograd::AutogradContext *ctx, std::vector<torch::Tensor> d_loss_d_outputs) {
-            // We may need to check that d_loss_d_output is contiguous...
             torch::Tensor d_loss_d_outputs_contiguous = d_loss_d_outputs[0].contiguous();
             torch::Tensor spherical_harmonics_gradients = ctx->saved_data["gradients"].toTensor();
             torch::Tensor d_loss_d_inputs = gradient_dot(d_loss_d_outputs_contiguous, spherical_harmonics_gradients);
