@@ -33,9 +33,6 @@ def test_sh_against_scipy(xyz, l, m):
     sh_torch = sh_calculator.compute(xyz)
     sh_torch_l_m = sh_torch[:, l**2+l+m]
 
-    print(l, m)
-    print(torch.tensor(sh_scipy_l_m))
-    print(sh_torch_l_m)
     assert torch.allclose(torch.tensor(sh_scipy_l_m), sh_torch_l_m), f"assertion failed for l={l}, m={m}"
 
 
